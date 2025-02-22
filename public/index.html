@@ -15,7 +15,6 @@
 <body class="container">
     <h1 class="text-center mt-4">Puntos de Interés</h1>
 
-    <!-- Selector de categoría -->
     <div class="mb-3">
         <label for="filterCategory" class="form-label">Filtrar por categoría:</label>
         <select id="filterCategory" class="form-select" onchange="filterMarkers()">
@@ -38,14 +37,12 @@
 
         var markers = [];
 
-        // Cargar puntos guardados del servidor al iniciar
         fetch("/puntos")
             .then(response => response.json())
             .then(data => {
                 data.forEach(point => addMarkerToMap(point));
             });
 
-        // Agregar marcador al hacer clic en el mapa
         map.on('click', function (e) {
             addMarker(e.latlng.lat, e.latlng.lng);
         });
