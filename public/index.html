@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mapa de Puntos de Interés</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map {
+            height: 500px;
+        }
+    </style>
+</head>
+<body class="container">
+    <h1 class="text-center mt-4">Puntos de Interés</h1>
+
+    <!-- Selector de categoría -->
+    <div class="mb-3">
+        <label for="filterCategory" class="form-label">Filtrar por categoría:</label>
+        <select id="filterCategory" class="form-select" onchange="filterMarkers()">
+            <option value="all">Mostrar todos</option>
+            <option value="hotel">Hoteles</option>
+            <option value="parque">Parques</option>
+            <option value="museo">Museos</option>
+        </select>
+    </div>
+
+    <button onclick="findNearestPoint()" class="btn btn-primary mb-3">📍 Buscar Punto Más Cercano</button>
+    <div id="map"></div>
+
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        var map = L.map('map').setView([40.4168, -3.7038], 6);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        var markers = [];
+
+        // Cargar puntos guardados del servidor al iniciar
+        fetch("/puntos")
+            .then(response => response.json())
+            .then(data => {
+                data.forEach(point => addMarkerToMap(point));
+            });
+
+        // Agregar marcador al hacer clic en el mapa
+        map.on('click', function (e) {
+            addMarker(e.latlng.lat, e.latlng.lng);
+        });
+
+        function addMarker(lat, lng) {
+            var marker = L.marker([lat, lng]).addTo(map);
+
+            var popupContent = `
+                <div>
+                    <label>Título:</label>
+                    <input type="text" name="title" placeholder="Ej: Museo Picasso"><br>
+                    <label>Descripción:</label>
+                    <input type="text" name="description" placeholder="Ej: Un museo de arte"><br>
+                    <label>Categoría:</label>
+                    <select name="category">
+                        <option value="hotel">Hotel</option>
+                        <option value="parque">Parque</option>
+                        <option value="museo">Museo</option>
+                    </select><br>
+                    <button onclick="saveMarker(${lat}, ${lng}, this)">Guardar</button>
+                </div>
+            `;
+
+            marker.bindPopup(popupContent).openPopup();
+            markers.push(marker);
+        }
+
+        function saveMarker(lat, lng, button) {
+            var popupDiv = button.parentNode;
+            var title = popupDiv.querySelector("input[name='title']").value;
+            var description = popupDiv.querySelector("input[name='description']").value;
+            var category = popupDiv.querySelector("select[name='category']").value;
+
+            if (!title || !description) {
+                alert("Por favor, completa todos los campos.");
+                return;
+            }
+
+            var point = { lat, lng, title, description, category };
+
+            addMarkerToMap(point);
+
+            fetch("/puntos", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(point)
+            })
+            .then(response => response.json())
+            .then(data => {
+                alert("Punto guardado correctamente.");
+            });
+        }
+
+        function addMarkerToMap(point) {
+            var marker = L.marker([point.lat, point.lng])
+                .addTo(map)
+                .bindPopup(`
+                    <b>${point.title}</b><br>${point.description}<br>
+                    <b>Categoría:</b> ${point.category}<br>
+                    <button onclick="editMarker(${point.lat}, ${point.lng}, this)">✏️ Editar</button>
+                    <button onclick="deleteMarker(${point.lat}, ${point.lng}, this)">🗑 Eliminar</button>
+                `);
+            marker.category = point.category;
+            markers.push(marker);
+        }
+
+        function filterMarkers() {
+            var selectedCategory = document.getElementById("filterCategory").value;
+
+            markers.forEach(marker => {
+                if (selectedCategory === "all" || marker.category === selectedCategory) {
+                    marker.addTo(map);
+                } else {
+                    map.removeLayer(marker);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
